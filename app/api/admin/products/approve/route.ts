@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
-import { createShopifyProduct } from "@/lib/shopify"
+import { createShopifyProduct } from "@/lib/shopify-oauth-publisher"
 import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
