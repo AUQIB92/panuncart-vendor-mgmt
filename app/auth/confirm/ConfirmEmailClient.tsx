@@ -97,10 +97,16 @@ export default function ConfirmEmailClient() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-              <Mail className="h-5 w-5 text-primary-foreground" />
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-primary transition-all duration-300 hover:bg-primary/90 hover:scale-105">
+              <div className="absolute inset-0 rounded-lg bg-white/20 opacity-0 transition-opacity duration-300 hover:opacity-100"></div>
+              <img 
+                src="/icon.jpeg" 
+                alt="PanunCart Icon" 
+                className="h-5 w-5 object-contain transition-transform duration-300 hover:scale-110 rounded-md"
+              />
+              <div className="absolute -inset-1 rounded-lg bg-primary/20 blur-sm opacity-0 transition-opacity duration-300 hover:opacity-70"></div>
             </div>
-            <span className="text-2xl font-bold">PanunCart</span>
+            <span className="font-display text-2xl font-bold text-foreground">PanunCart</span>
           </Link>
         </div>
 

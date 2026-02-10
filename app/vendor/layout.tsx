@@ -2,6 +2,7 @@ import React from "react"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { VendorSidebar } from "@/components/vendor/vendor-sidebar"
+import { SidebarProvider } from "@/contexts/sidebar-context"
 
 export default async function VendorLayout({
   children,
@@ -28,13 +29,15 @@ export default async function VendorLayout({
   const vendorStatus = vendor?.status || "pending"
 
   return (
-    <div className="flex min-h-screen">
-      <VendorSidebar user={user} vendorStatus={vendorStatus} />
-      <main className="flex-1 overflow-y-auto bg-muted/30">
-        <div className="mx-auto max-w-6xl px-6 py-8">
-          {children}
-        </div>
-      </main>
-    </div>
+    <SidebarProvider>
+      <div className="flex min-h-screen">
+        <VendorSidebar user={user} vendorStatus={vendorStatus} />
+        <main className="flex-1 overflow-y-auto bg-muted/30">
+          <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+            {children}
+          </div>
+        </main>
+      </div>
+    </SidebarProvider>
   )
 }
