@@ -6,11 +6,19 @@ function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-md">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-            <Store className="h-5 w-5 text-primary-foreground" />
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 p-1 shadow-lg ring-1 ring-primary/20 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:ring-primary/30 group-hover:rotate-3 group-hover:shadow-primary/20">
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-white/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+            <img 
+              src="/icon.jpeg" 
+              alt="PanunCart Icon" 
+              className="h-10 w-10 object-contain drop-shadow-sm transition-transform duration-300 group-hover:scale-110 rounded-lg"
+            />
+            <div className="absolute -inset-1 rounded-xl bg-primary/10 blur-sm opacity-0 transition-opacity duration-300 group-hover:opacity-70"></div>
           </div>
-          <span className="font-display text-xl font-bold text-foreground">PanunCart</span>
+          <span className="font-display text-xl font-bold text-foreground bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent transition-all duration-300 group-hover:from-primary group-hover:to-primary/80">
+            PanunCart
+          </span>
         </Link>
         <div className="flex items-center gap-3">
           <Button variant="ghost" asChild>
@@ -33,6 +41,9 @@ function HeroSection() {
     <section className="relative overflow-hidden px-6 py-24 lg:py-32">
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,hsl(25_95%_50%/0.08),transparent_60%)]" />
       <div className="mx-auto max-w-4xl text-center">
+        <div className="mb-8">
+
+        </div>
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-card px-4 py-1.5 text-sm text-muted-foreground">
           <Zap className="h-3.5 w-3.5 text-primary" />
           Trusted by vendors across India
@@ -75,8 +86,8 @@ function FeaturesSection() {
     },
     {
       icon: TrendingUp,
-      title: "Shopify Integration",
-      description: "Approved products are automatically published to our Shopify store, reaching a wide audience instantly.",
+      title: "Global Reach",
+      description: "Approved products are automatically published to our online marketplace, reaching customers worldwide instantly.",
     },
     {
       icon: Users,
@@ -113,7 +124,7 @@ function StepsSection() {
     { step: "01", title: "Register", description: "Create your vendor account with business details" },
     { step: "02", title: "List Products", description: "Add your products with images and pricing" },
     { step: "03", title: "Get Approved", description: "Admin reviews and approves your products" },
-    { step: "04", title: "Start Selling", description: "Products go live on panuncart.in Shopify store" },
+    { step: "04", title: "Start Selling", description: "Products go live on our online marketplace" },
   ]
 
   return (
@@ -146,8 +157,14 @@ function Footer() {
     <footer className="border-t bg-card px-6 py-12">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 sm:flex-row">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Store className="h-4 w-4 text-primary-foreground" />
+          <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-primary transition-all duration-300 group-hover:bg-primary/90 group-hover:scale-105">
+            <div className="absolute inset-0 rounded-lg bg-white/20 opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+            <img 
+              src="/icon.jpeg" 
+              alt="PanunCart Icon" 
+              className="h-5 w-5 object-contain transition-transform duration-300 group-hover:scale-110 rounded-md"
+            />
+            <div className="absolute -inset-1 rounded-lg bg-primary/20 blur-sm opacity-0 transition-opacity duration-300 group-hover:opacity-70"></div>
           </div>
           <span className="font-display font-bold text-foreground">PanunCart</span>
         </div>
