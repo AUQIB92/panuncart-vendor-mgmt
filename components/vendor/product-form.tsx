@@ -6,7 +6,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Send, Save } from "lucide-react"
 import { BulkImageUploader } from "@/components/vendor/bulk-image-uploader"
 
@@ -29,7 +35,12 @@ interface ProductFormProps {
   initialData?: Record<string, unknown>
 }
 
-export function ProductForm({ onSubmit, loading, initialData }: ProductFormProps) {
+export function ProductForm({
+  onSubmit,
+  loading,
+  initialData,
+}: ProductFormProps) {
+  /* ---------------- BASIC FORM STATE (NO IMAGES HERE) ---------------- */
   const [form, setForm] = useState({
     title: (initialData?.title as string) || "",
     description: (initialData?.description as string) || "",
@@ -37,21 +48,23 @@ export function ProductForm({ onSubmit, loading, initialData }: ProductFormProps
     compare_at_price: (initialData?.compare_at_price as string) || "",
     sku: (initialData?.sku as string) || "",
     barcode: (initialData?.barcode as string) || "",
-    inventory_quantity: (initialData?.inventory_quantity as string) || "0",
+    inventory_quantity:
+      (initialData?.inventory_quantity as string) || "0",
     category: (initialData?.category as string) || "",
     tags: (initialData?.tags as string) || "",
-    images: Array.isArray(initialData?.images) ? (initialData?.images as string[]).join(',') : (initialData?.images as string) || "",
     weight: (initialData?.weight as string) || "",
     weight_unit: (initialData?.weight_unit as string) || "kg",
   })
-  
+
+  /* ---------------- IMAGE STATE (SINGLE SOURCE OF TRUTH) ---------------- */
   const [imageUrls, setImageUrls] = useState<string[]>(() => {
-    const initialImages = initialData?.images
-    if (Array.isArray(initialImages)) {
-      return initialImages as string[]
-    } else if (typeof initialImages === 'string' && initialImages) {
-      return initialImages.split(',').map(url => url.trim()).filter(Boolean)
-    }
+    const images = initialData?.images
+    if (Array.isArray(images)) return images as string[]
+    if (typeof images === "string" && images.length > 0)
+      return images
+        .split(",")
+        .map((i) => i.trim())
+        .filter(Boolean)
     return []
   })
 
@@ -64,194 +77,184 @@ export function ProductForm({ onSubmit, loading, initialData }: ProductFormProps
   }
 
   function handleSubmit(submitForReview: boolean) {
-    const formDataWithImages = {
+    const payload = {
       ...form,
-      imageUrls
+      images: imageUrls, // ✅ CORRECT FIELD FOR BACKEND + SHOPIFY
     }
-    onSubmit(formDataWithImages, submitForReview)
+
+    onSubmit(payload, submitForReview)
   }
 
   return (
     <div className="flex flex-col gap-6">
+      {/* ---------------- BASIC INFO ---------------- */}
       <Card>
         <CardContent className="p-6">
-          <h3 className="mb-4 font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Basic Information
           </h3>
+
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="title">Product Title *</Label>
               <Input
                 id="title"
-                placeholder="e.g., Handwoven Pashmina Shawl"
                 value={form.title}
-                onChange={(e) => updateForm("title", e.target.value)}
+                onChange={(e) =>
+                  updateForm("title", e.target.value)
+                }
+                placeholder="e.g., Handwoven Pashmina Shawl"
                 required
               />
             </div>
+
             <div className="flex flex-col gap-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
-                placeholder="Describe your product in detail..."
                 rows={4}
                 value={form.description}
-                onChange={(e) => updateForm("description", e.target.value)}
+                onChange={(e) =>
+                  updateForm("description", e.target.value)
+                }
               />
             </div>
+
             <div className="flex flex-col gap-2">
-              <Label htmlFor="category">Category</Label>
-              <Select value={form.category} onValueChange={(v) => updateForm("category", v)}>
+              <Label>Category</Label>
+              <Select
+                value={form.category}
+                onValueChange={(v) =>
+                  updateForm("category", v)
+                }
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a category" />
+                  <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
+                  {categories.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
             <div className="flex flex-col gap-2">
-              <Label htmlFor="tags">Tags</Label>
+              <Label>Tags</Label>
               <Input
-                id="tags"
-                placeholder="e.g., pashmina, handmade, kashmiri (comma separated)"
                 value={form.tags}
-                onChange={(e) => updateForm("tags", e.target.value)}
+                onChange={(e) =>
+                  updateForm("tags", e.target.value)
+                }
+                placeholder="comma separated"
               />
-              <p className="text-xs text-muted-foreground">Separate multiple tags with commas</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* ---------------- PRICING ---------------- */}
       <Card>
         <CardContent className="p-6">
-          <h3 className="mb-4 font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Pricing & Inventory
           </h3>
+
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="price">Price (INR) *</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                min="0"
-                max="99999999.99"
-                placeholder="0.00"
-                value={form.price}
-                onChange={(e) => updateForm("price", e.target.value)}
-                required
-              />
-              <p className="text-xs text-muted-foreground">Maximum price: ₹99,999,999.99</p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="compare_at_price">Compare at Price (INR)</Label>
-              <Input
-                id="compare_at_price"
-                type="number"
-                step="0.01"
-                min="0"
-                max="99999999.99"
-                placeholder="Original price for showing discount"
-                value={form.compare_at_price}
-                onChange={(e) => updateForm("compare_at_price", e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">Maximum price: ₹99,999,999.99</p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="sku">SKU</Label>
-              <Input
-                id="sku"
-                placeholder="Stock Keeping Unit"
-                value={form.sku}
-                onChange={(e) => updateForm("sku", e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="barcode">Barcode</Label>
-              <Input
-                id="barcode"
-                placeholder="ISBN, UPC, GTIN, etc."
-                value={form.barcode}
-                onChange={(e) => updateForm("barcode", e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="inventory_quantity">Inventory Quantity</Label>
-              <Input
-                id="inventory_quantity"
-                type="number"
-                min="0"
-                placeholder="0"
-                value={form.inventory_quantity}
-                onChange={(e) => updateForm("inventory_quantity", e.target.value)}
-              />
-            </div>
+            <InputBlock
+              label="Price (INR) *"
+              value={form.price}
+              onChange={(v) => updateForm("price", v)}
+            />
+            <InputBlock
+              label="Compare at Price"
+              value={form.compare_at_price}
+              onChange={(v) =>
+                updateForm("compare_at_price", v)
+              }
+            />
+            <InputBlock
+              label="SKU"
+              value={form.sku}
+              onChange={(v) => updateForm("sku", v)}
+            />
+            <InputBlock
+              label="Barcode"
+              value={form.barcode}
+              onChange={(v) =>
+                updateForm("barcode", v)
+              }
+            />
+            <InputBlock
+              label="Inventory Quantity"
+              value={form.inventory_quantity}
+              onChange={(v) =>
+                updateForm("inventory_quantity", v)
+              }
+            />
           </div>
         </CardContent>
       </Card>
 
+      {/* ---------------- SHIPPING ---------------- */}
       <Card>
         <CardContent className="p-6">
-          <h3 className="mb-4 font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Shipping
           </h3>
+
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="weight">Weight</Label>
-              <Input
-                id="weight"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="Product weight"
-                value={form.weight}
-                onChange={(e) => updateForm("weight", e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="weight_unit">Weight Unit</Label>
-              <Select value={form.weight_unit} onValueChange={(v) => updateForm("weight_unit", v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="g">Grams (g)</SelectItem>
-                  <SelectItem value="kg">Kilograms (kg)</SelectItem>
-                  <SelectItem value="lb">Pounds (lb)</SelectItem>
-                  <SelectItem value="oz">Ounces (oz)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <InputBlock
+              label="Weight"
+              value={form.weight}
+              onChange={(v) =>
+                updateForm("weight", v)
+              }
+            />
+            <Select
+              value={form.weight_unit}
+              onValueChange={(v) =>
+                updateForm("weight_unit", v)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="g">Grams</SelectItem>
+                <SelectItem value="kg">Kilograms</SelectItem>
+                <SelectItem value="lb">Pounds</SelectItem>
+                <SelectItem value="oz">Ounces</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
 
+      {/* ---------------- IMAGES ---------------- */}
       <Card>
         <CardContent className="p-6">
-          <BulkImageUploader 
-            onImagesChange={handleImagesChange}
+          <BulkImageUploader
             existingImages={imageUrls}
+            onImagesChange={handleImagesChange}
             maxImages={10}
           />
         </CardContent>
       </Card>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+      {/* ---------------- ACTIONS ---------------- */}
+      <div className="flex justify-end gap-3">
         <Button
           variant="outline"
-          className="bg-transparent"
           onClick={() => handleSubmit(false)}
           disabled={loading || !form.title || !form.price}
         >
           <Save className="mr-2 h-4 w-4" />
-          Save as Draft
+          Save Draft
         </Button>
+
         <Button
           onClick={() => handleSubmit(true)}
           disabled={loading || !form.title || !form.price}
@@ -260,6 +263,27 @@ export function ProductForm({ onSubmit, loading, initialData }: ProductFormProps
           {loading ? "Submitting..." : "Submit for Review"}
         </Button>
       </div>
+    </div>
+  )
+}
+
+/* ---------------- SMALL HELPER ---------------- */
+function InputBlock({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Label>{label}</Label>
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </div>
   )
 }

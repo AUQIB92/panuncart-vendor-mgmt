@@ -13,6 +13,16 @@ const SHOPIFY_API_VERSION = "2024-10";
  */
 async function uploadImageToShopify(imageUrl: string, altText: string = ''): Promise<string | null> {
   console.log(`📤 Uploading image to Shopify CDN: ${imageUrl}`);
+  console.log(`📝 Alt text: ${altText}`);
+  
+  // Validate URL first
+  try {
+    new URL(imageUrl);
+    console.log('✅ URL validation passed');
+  } catch (e) {
+    console.log(`❌ Invalid URL format: ${imageUrl}`);
+    return null;
+  }
   
   const query = `
     mutation stagedUploadsCreate($input: [StagedUploadInput!]!) {
@@ -36,14 +46,15 @@ async function uploadImageToShopify(imageUrl: string, altText: string = ''): Pro
   const variables = {
     input: [{
       resource: 'IMAGE',
-      filename: `product-image-${Date.now()}.jpg`,
+      filename: `product-image-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`,
       mimeType: 'image/jpeg',
-      fileSize: '100000',
+      fileSize: '2000000', // 2MB estimate
       httpMethod: 'POST'
     }]
   };
   
   try {
+    console.log('🔑 Getting fresh Shopify access token...');
     // Get fresh access token directly
     const accessToken = await getFreshShopifyToken();
     
@@ -52,7 +63,10 @@ async function uploadImageToShopify(imageUrl: string, altText: string = ''): Pro
       return null;
     }
     
+    console.log('✅ Got access token, proceeding with GraphQL request');
+    
     // Step 1: Get staging URL
+    console.log('📡 Requesting staging URL from Shopify GraphQL...');
     const graphqlResponse = await fetch(
       `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2024-10/graphql.json`,
       {
@@ -65,10 +79,18 @@ async function uploadImageToShopify(imageUrl: string, altText: string = ''): Pro
       }
     );
     
+    console.log(`📡 GraphQL response status: ${graphqlResponse.status}`);
+    
     const graphqlData = await graphqlResponse.json();
     
     if (graphqlData.errors) {
-      console.log('❌ GraphQL Error:', graphqlData.errors);
+      console.log('❌ GraphQL Error:', JSON.stringify(graphqlData.errors, null, 2));
+      return null;
+    }
+    
+    if (graphqlData.data.stagedUploadsCreate.userErrors.length > 0) {
+      const errors = graphqlData.data.stagedUploadsCreate.userErrors;
+      console.log('❌ GraphQL User Errors:', errors);
       return null;
     }
     
@@ -79,11 +101,26 @@ async function uploadImageToShopify(imageUrl: string, altText: string = ''): Pro
       return null;
     }
     
-    console.log('✅ Got staging URL');
+    console.log('✅ Got staging URL successfully');
+    console.log('📦 Staging URL:', stagedTarget.url);
+    console.log('🔗 Resource URL:', stagedTarget.resourceUrl);
     
     // Step 2: Download image and upload to staging URL
+    console.log('📥 Downloading image from source...');
     const imageResponse = await fetch(imageUrl);
+    
+    console.log(`📥 Image download response status: ${imageResponse.status}`);
+    
+    if (!imageResponse.ok) {
+      console.log(`❌ Failed to download image: ${imageResponse.status} ${imageResponse.statusText}`);
+      return null;
+    }
+    
+    const contentType = imageResponse.headers.get('content-type');
+    console.log(`📥 Content-Type: ${contentType}`);
+    
     const imageBuffer = await imageResponse.arrayBuffer();
+    console.log(`✅ Image downloaded (${imageBuffer.byteLength} bytes)`);
     
     // Convert to FormData for multipart upload
     const formData = new FormData();
@@ -97,24 +134,30 @@ async function uploadImageToShopify(imageUrl: string, altText: string = ''): Pro
     const blob = new Blob([imageBuffer], { type: 'image/jpeg' });
     formData.append('file', blob, 'image.jpg');
     
+    console.log('📤 Uploading to Shopify staging area...');
+    
     // Upload to staging URL
     const uploadResponse = await fetch(stagedTarget.url, {
       method: 'POST',
       body: formData,
     });
     
+    console.log(`📤 Staging upload response status: ${uploadResponse.status}`);
+    
     if (!uploadResponse.ok) {
-      console.log('❌ Staging upload failed:', uploadResponse.status);
+      const errorText = await uploadResponse.text();
+      console.log('❌ Staging upload failed:', uploadResponse.status, errorText);
       return null;
     }
     
-    console.log('✅ Image uploaded to staging area');
-    console.log('📦 Resource URL:', stagedTarget.resourceUrl);
+    console.log('✅ Image uploaded to staging area successfully');
+    console.log('📦 Final Resource URL:', stagedTarget.resourceUrl);
     
     return stagedTarget.resourceUrl;
     
-  } catch (error) {
-    console.log('❌ Image upload failed:', error);
+  } catch (error: any) {
+    console.log('❌ Image upload failed:', error.message);
+    console.log('Stack:', error.stack);
     return null;
   }
 }
@@ -164,7 +207,9 @@ export async function createShopifyProduct(product: {
   weight?: number | null;
   weight_unit?: string | null;
   vendor_name?: string;
-}): Promise<{ success: boolean; shopify_product_id?: string; shopify_variant_id?: string; error?: string }> {
+  // Optional: product ID for database updates
+  product_id?: string;
+}): Promise<{ success: boolean; shopify_product_id?: string; shopify_variant_id?: string; uploaded_image_urls?: string[]; error?: string }> {
   console.log('🚀 Creating Shopify product (Auto-Refresh):', {
     title: product.title,
     price: product.price,
@@ -175,8 +220,17 @@ export async function createShopifyProduct(product: {
   const imageNodes: { src: string }[] = [];
   
   if (product.images && Array.isArray(product.images)) {
-    for (const imageUrl of product.images) {
+    console.log(`📤 Processing ${product.images.length} images for upload...`);
+    
+    // Log all incoming image URLs for debugging
+    console.log('📥 Incoming image URLs:', product.images);
+    
+    // Process images sequentially to avoid rate limiting
+    for (let i = 0; i < product.images.length; i++) {
+      const imageUrl = product.images[i];
       try {
+        console.log(`🔄 Processing image ${i + 1}/${product.images.length}: ${imageUrl}`);
+        
         // Validate URL first - skip blob URLs and invalid URLs
         const url = new URL(imageUrl);
         
@@ -191,17 +245,31 @@ export async function createShopifyProduct(product: {
           continue;
         }
         
-        const resourceUrl = await uploadImageToShopify(imageUrl, product.title);
+        console.log(`📤 Attempting to upload image ${i + 1} to Shopify CDN...`);
+        const resourceUrl = await uploadImageToShopify(imageUrl, `${product.title} - Image ${i + 1}`);
+        
         if (resourceUrl) {
           imageNodes.push({ src: resourceUrl });
+          console.log(`✅ Image ${i + 1} uploaded successfully: ${resourceUrl}`);
+        } else {
+          console.log(`❌ Failed to upload image ${i + 1}: ${imageUrl}`);
+          console.log('   This image will not be included in the final product');
         }
       } catch (e) {
-        console.warn(`Invalid image URL skipped: ${imageUrl}`);
+        console.warn(`❌ Invalid image URL skipped: ${imageUrl}`, e);
       }
+    }
+  } else {
+    console.log('⚠️  No images array provided or images is not an array');
+    if (product.images) {
+      console.log('   Images type:', typeof product.images);
+      console.log('   Images value:', product.images);
     }
   }
   
   console.log(`✅ Processed ${imageNodes.length} valid images`);
+  console.log('🔍 DEBUG: imageNodes array:', imageNodes);
+  console.log('🔍 DEBUG: Returning uploaded_image_urls:', imageNodes.map(node => node.src));
   
   const shopifyProduct: ShopifyProductInput = {
     title: product.title,
@@ -251,6 +319,8 @@ export async function createShopifyProduct(product: {
       success: true,
       shopify_product_id: String(data.product.id),
       shopify_variant_id: data.product.variants?.[0] ? String(data.product.variants[0].id) : undefined,
+      // Return the clean CDN URLs that were actually uploaded
+      uploaded_image_urls: imageNodes.map(node => node.src)
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
