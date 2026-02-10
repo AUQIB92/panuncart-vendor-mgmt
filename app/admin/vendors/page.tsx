@@ -10,7 +10,8 @@ export default async function AdminVendorsPage() {
 
   if (!user) redirect("/auth/login")
 
-  const { data: vendors } = await supabase.rpc("admin_get_vendors_pending_approval")
+  // Revert to RPC function for reliable admin access
+  const { data: vendors } = await supabase.rpc("admin_get_vendors")
 
   return (
     <div>

@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Send, Save } from "lucide-react"
+import { BulkImageUploader } from "@/components/vendor/bulk-image-uploader"
 
 const categories = [
   "Clothing",
@@ -39,17 +40,35 @@ export function ProductForm({ onSubmit, loading, initialData }: ProductFormProps
     inventory_quantity: (initialData?.inventory_quantity as string) || "0",
     category: (initialData?.category as string) || "",
     tags: (initialData?.tags as string) || "",
-    images: (initialData?.images as string) || "",
+    images: Array.isArray(initialData?.images) ? (initialData?.images as string[]).join(',') : (initialData?.images as string) || "",
     weight: (initialData?.weight as string) || "",
     weight_unit: (initialData?.weight_unit as string) || "kg",
+  })
+  
+  const [imageUrls, setImageUrls] = useState<string[]>(() => {
+    const initialImages = initialData?.images
+    if (Array.isArray(initialImages)) {
+      return initialImages as string[]
+    } else if (typeof initialImages === 'string' && initialImages) {
+      return initialImages.split(',').map(url => url.trim()).filter(Boolean)
+    }
+    return []
   })
 
   function updateForm(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
+  function handleImagesChange(urls: string[]) {
+    setImageUrls(urls)
+  }
+
   function handleSubmit(submitForReview: boolean) {
-    onSubmit(form, submitForReview)
+    const formDataWithImages = {
+      ...form,
+      imageUrls
+    }
+    onSubmit(formDataWithImages, submitForReview)
   }
 
   return (
@@ -122,11 +141,13 @@ export function ProductForm({ onSubmit, loading, initialData }: ProductFormProps
                 type="number"
                 step="0.01"
                 min="0"
+                max="99999999.99"
                 placeholder="0.00"
                 value={form.price}
                 onChange={(e) => updateForm("price", e.target.value)}
                 required
               />
+              <p className="text-xs text-muted-foreground">Maximum price: ₹99,999,999.99</p>
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="compare_at_price">Compare at Price (INR)</Label>
@@ -135,10 +156,12 @@ export function ProductForm({ onSubmit, loading, initialData }: ProductFormProps
                 type="number"
                 step="0.01"
                 min="0"
+                max="99999999.99"
                 placeholder="Original price for showing discount"
                 value={form.compare_at_price}
                 onChange={(e) => updateForm("compare_at_price", e.target.value)}
               />
+              <p className="text-xs text-muted-foreground">Maximum price: ₹99,999,999.99</p>
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="sku">SKU</Label>
@@ -211,22 +234,11 @@ export function ProductForm({ onSubmit, loading, initialData }: ProductFormProps
 
       <Card>
         <CardContent className="p-6">
-          <h3 className="mb-4 font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Images
-          </h3>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="images">Image URLs</Label>
-            <Textarea
-              id="images"
-              placeholder="Paste image URLs, one per line or comma separated"
-              rows={3}
-              value={form.images}
-              onChange={(e) => updateForm("images", e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Enter direct URLs to your product images, separated by commas
-            </p>
-          </div>
+          <BulkImageUploader 
+            onImagesChange={handleImagesChange}
+            existingImages={imageUrls}
+            maxImages={10}
+          />
         </CardContent>
       </Card>
 

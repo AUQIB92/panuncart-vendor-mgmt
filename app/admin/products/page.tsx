@@ -10,6 +10,7 @@ export default async function AdminProductsPage() {
 
   if (!user) redirect("/auth/login")
 
+  // Revert to RPC function for reliable admin access
   const { data: products } = await supabase.rpc("admin_get_products")
 
   // Map RPC result to match ProductReviewList interface

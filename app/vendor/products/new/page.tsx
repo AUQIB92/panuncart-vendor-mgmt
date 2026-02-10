@@ -40,6 +40,22 @@ export default function NewProductPage() {
       return
     }
 
+    // Validate price limits
+    const price = Number(formData.price)
+    const compareAtPrice = formData.compare_at_price ? Number(formData.compare_at_price) : null
+    
+    if (price > 99999999.99) {
+      toast.error("Price cannot exceed ₹99,999,999.99")
+      setLoading(false)
+      return
+    }
+    
+    if (compareAtPrice && compareAtPrice > 99999999.99) {
+      toast.error("Compare at price cannot exceed ₹99,999,999.99")
+      setLoading(false)
+      return
+    }
+
     // Double-check vendor approval status before submitting
     const { data: vendorRows } = await supabase.rpc("get_my_vendor")
     if (vendorRows?.[0]?.status !== "approved") {
@@ -53,8 +69,8 @@ export default function NewProductPage() {
       vendor_id: user.id,
       title: formData.title as string,
       description: formData.description as string,
-      price: Number(formData.price),
-      compare_at_price: formData.compare_at_price ? Number(formData.compare_at_price) : null,
+      price: price,
+      compare_at_price: compareAtPrice,
       sku: formData.sku as string,
       barcode: formData.barcode as string,
       inventory_quantity: Number(formData.inventory_quantity) || 0,
@@ -62,12 +78,22 @@ export default function NewProductPage() {
       tags: formData.tags ? (formData.tags as string).split(",").map((t: string) => t.trim()).filter(Boolean) : [],
       weight: formData.weight ? Number(formData.weight) : null,
       weight_unit: (formData.weight_unit as string) || "kg",
-      images: formData.images ? (formData.images as string).split(",").map((u: string) => u.trim()).filter(Boolean) : [],
+      images: formData.imageUrls ? (formData.imageUrls as string[]).filter(Boolean) : [],
       status: submitForReview ? "pending" : "draft",
     })
 
     if (error) {
-      toast.error(error.message)
+      console.error("Product submission error:", error)
+      
+      // Handle specific numeric overflow errors
+      if (error.message.includes("numeric field overflow") || 
+          error.message.includes("value is out of range") ||
+          error.message.includes("too big")) {
+        toast.error("Price values are too large. Maximum allowed is ₹99,999,999.99")
+      } else {
+        toast.error(error.message)
+      }
+      
       setLoading(false)
       return
     }

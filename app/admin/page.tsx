@@ -14,7 +14,7 @@ export default async function AdminDashboard() {
 
   if (!user) redirect("/auth/login")
 
-  // Use SECURITY DEFINER functions to bypass RLS for admin
+  // Revert to RPC functions for reliable admin access
   const { data: vendors } = await supabase.rpc("admin_get_vendors")
   const { data: products } = await supabase.rpc("admin_get_products")
 

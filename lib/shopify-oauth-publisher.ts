@@ -8,6 +8,117 @@ import { makeShopifyAPICall, getFreshShopifyToken } from "./shopify-token-manage
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
 const SHOPIFY_API_VERSION = "2024-10";
 
+/**
+ * Upload image to Shopify CDN via GraphQL
+ */
+async function uploadImageToShopify(imageUrl: string, altText: string = ''): Promise<string | null> {
+  console.log(`📤 Uploading image to Shopify CDN: ${imageUrl}`);
+  
+  const query = `
+    mutation stagedUploadsCreate($input: [StagedUploadInput!]!) {
+      stagedUploadsCreate(input: $input) {
+        stagedTargets {
+          url
+          resourceUrl
+          parameters {
+            name
+            value
+          }
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+  
+  const variables = {
+    input: [{
+      resource: 'IMAGE',
+      filename: `product-image-${Date.now()}.jpg`,
+      mimeType: 'image/jpeg',
+      fileSize: '100000',
+      httpMethod: 'POST'
+    }]
+  };
+  
+  try {
+    // Get fresh access token directly
+    const accessToken = await getFreshShopifyToken();
+    
+    if (!accessToken) {
+      console.log('❌ No access token available for GraphQL');
+      return null;
+    }
+    
+    // Step 1: Get staging URL
+    const graphqlResponse = await fetch(
+      `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2024-10/graphql.json`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': accessToken,
+        },
+        body: JSON.stringify({ query, variables }),
+      }
+    );
+    
+    const graphqlData = await graphqlResponse.json();
+    
+    if (graphqlData.errors) {
+      console.log('❌ GraphQL Error:', graphqlData.errors);
+      return null;
+    }
+    
+    const stagedTarget = graphqlData.data.stagedUploadsCreate.stagedTargets[0];
+    
+    if (!stagedTarget) {
+      console.log('❌ No staging target received');
+      return null;
+    }
+    
+    console.log('✅ Got staging URL');
+    
+    // Step 2: Download image and upload to staging URL
+    const imageResponse = await fetch(imageUrl);
+    const imageBuffer = await imageResponse.arrayBuffer();
+    
+    // Convert to FormData for multipart upload
+    const formData = new FormData();
+    
+    // Add all required parameters
+    stagedTarget.parameters.forEach((param: { name: string; value: string }) => {
+      formData.append(param.name, param.value);
+    });
+    
+    // Add the image file
+    const blob = new Blob([imageBuffer], { type: 'image/jpeg' });
+    formData.append('file', blob, 'image.jpg');
+    
+    // Upload to staging URL
+    const uploadResponse = await fetch(stagedTarget.url, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!uploadResponse.ok) {
+      console.log('❌ Staging upload failed:', uploadResponse.status);
+      return null;
+    }
+    
+    console.log('✅ Image uploaded to staging area');
+    console.log('📦 Resource URL:', stagedTarget.resourceUrl);
+    
+    return stagedTarget.resourceUrl;
+    
+  } catch (error) {
+    console.log('❌ Image upload failed:', error);
+    return null;
+  }
+}
+
 interface ShopifyProductInput {
   title: string;
   body_html?: string;
@@ -60,6 +171,38 @@ export async function createShopifyProduct(product: {
     store_domain: SHOPIFY_STORE_DOMAIN,
   });
 
+  // First upload all images to Shopify CDN
+  const imageNodes: { src: string }[] = [];
+  
+  if (product.images && Array.isArray(product.images)) {
+    for (const imageUrl of product.images) {
+      try {
+        // Validate URL first - skip blob URLs and invalid URLs
+        const url = new URL(imageUrl);
+        
+        // Skip blob URLs and localhost URLs that aren't accessible to Shopify
+        // Allow Shopify CDN URLs (they start with https://cdn.shopify.com/)
+        if ((url.protocol === 'blob:' || 
+            url.protocol === 'data:' ||
+            (url.hostname === 'localhost' || url.hostname === '127.0.0.1')) &&
+            !url.hostname.includes('shopify.com')) {
+          console.log(`⚠️  Skipping local/blob/data URL: ${imageUrl}`);
+          console.log('   Note: For Shopify integration, upload images to Shopify CDN');
+          continue;
+        }
+        
+        const resourceUrl = await uploadImageToShopify(imageUrl, product.title);
+        if (resourceUrl) {
+          imageNodes.push({ src: resourceUrl });
+        }
+      } catch (e) {
+        console.warn(`Invalid image URL skipped: ${imageUrl}`);
+      }
+    }
+  }
+  
+  console.log(`✅ Processed ${imageNodes.length} valid images`);
+  
   const shopifyProduct: ShopifyProductInput = {
     title: product.title,
     body_html: product.description || "",
@@ -78,7 +221,7 @@ export async function createShopifyProduct(product: {
         weight_unit: product.weight_unit || "kg",
       },
     ],
-    images: product.images?.filter(Boolean).map((url) => ({ src: url })) || [],
+    images: imageNodes,
   };
 
   try {
