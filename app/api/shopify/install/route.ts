@@ -4,22 +4,19 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
 
-// OAuth constants
-const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID;
-const SHOPIFY_CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET;
-const SHOPIFY_SCOPES = process.env.SHOPIFY_SCOPES;
-const SHOPIFY_REDIRECT_URI = process.env.SHOPIFY_REDIRECT_URI;
-const STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN || 'panuncart-x-bbm.myshopify.com';
-
-// Validate required environment variables
-if (!SHOPIFY_CLIENT_ID || !SHOPIFY_CLIENT_SECRET || !SHOPIFY_SCOPES || !SHOPIFY_REDIRECT_URI) {
-  throw new Error('Missing required Shopify OAuth environment variables');
-}
-
-// Install route - Step 3
 export async function GET(request: NextRequest) {
+  // Validate required environment variables
+  if (!process.env.SHOPIFY_CLIENT_ID || 
+      !process.env.SHOPIFY_CLIENT_SECRET || 
+      !process.env.SHOPIFY_SCOPES || 
+      !process.env.SHOPIFY_REDIRECT_URI) {
+    return NextResponse.json(
+      { error: 'Missing required Shopify OAuth environment variables' }, 
+      { status: 500 }
+    );
+  }
+  
   const { searchParams } = new URL(request.url);
   const shop = searchParams.get('shop');
   
@@ -33,16 +30,15 @@ export async function GET(request: NextRequest) {
   }
   
   // Generate random state for security
-  const state = crypto.randomBytes(16).toString('hex');
-  
-  // Store state temporarily (in production, use session storage)
-  // For demo purposes, we'll pass it in the URL
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  const state = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
   
   const installUrl = 
     `https://${shop}/admin/oauth/authorize` +
-    `?client_id=${SHOPIFY_CLIENT_ID}` +
-    `&scope=${SHOPIFY_SCOPES}` +
-    `&redirect_uri=${SHOPIFY_REDIRECT_URI}` +
+    `?client_id=${process.env.SHOPIFY_CLIENT_ID}` +
+    `&scope=${process.env.SHOPIFY_SCOPES}` +
+    `&redirect_uri=${process.env.SHOPIFY_REDIRECT_URI}` +
     `&state=${state}`;
   
   console.log('🛍️  Shopify OAuth Install URL:', installUrl);

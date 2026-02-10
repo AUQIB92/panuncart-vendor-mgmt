@@ -6,12 +6,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storeShopifyToken } from '@/lib/shopify-oauth';
 
-// Shopify OAuth constants
-const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID;
-const SHOPIFY_CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET;
-const STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN || 'panuncart-x-bbm.myshopify.com';
-
 export async function GET(request: NextRequest) {
+  // Validate required environment variables
+  if (!process.env.SHOPIFY_CLIENT_ID || !process.env.SHOPIFY_CLIENT_SECRET) {
+    return NextResponse.json(
+      { error: 'Missing required Shopify OAuth environment variables' }, 
+      { status: 500 }
+    );
+  }
+  
   const { searchParams } = new URL(request.url);
   const shop = searchParams.get('shop');
   const code = searchParams.get('code');
@@ -32,8 +35,8 @@ export async function GET(request: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        client_id: SHOPIFY_CLIENT_ID,
-        client_secret: SHOPIFY_CLIENT_SECRET,
+        client_id: process.env.SHOPIFY_CLIENT_ID,
+        client_secret: process.env.SHOPIFY_CLIENT_SECRET,
         code: code,
       }),
     });
