@@ -58,7 +58,7 @@ export default function RegisterPage() {
       options: {
         emailRedirectTo:
           process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-          `${window.location.origin}/vendor`,
+          `${window.location.origin}/auth/confirm`,
         data: {
           role: "vendor",
           business_name: form.business_name,

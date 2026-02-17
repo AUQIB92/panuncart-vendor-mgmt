@@ -28,6 +28,7 @@ export default function ConfirmEmailClient() {
       const error = searchParams.get("error")
       const errorCode = searchParams.get("error_code")
       const errorDescription = searchParams.get("error_description")
+      const code = searchParams.get("code")
 
       if (error || errorCode) {
         setStatus("error")
@@ -42,6 +43,32 @@ export default function ConfirmEmailClient() {
           )
         }
         return
+      }
+
+      // Handle PKCE/email callback links that return a one-time code
+      if (code) {
+        try {
+          const { error } = await supabase.auth.exchangeCodeForSession(code)
+          if (error) {
+            setStatus("error")
+            setMessage(
+              "Confirmation link is invalid or has expired. Please register again."
+            )
+            return
+          }
+
+          setStatus("success")
+          setMessage("Your email has been confirmed successfully!")
+
+          setTimeout(() => {
+            router.push("/auth/login")
+          }, 3000)
+          return
+        } catch {
+          setStatus("error")
+          setMessage("Something went wrong. Please try again.")
+          return
+        }
       }
 
       const token_hash = searchParams.get("token_hash")

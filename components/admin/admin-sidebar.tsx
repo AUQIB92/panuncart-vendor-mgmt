@@ -77,17 +77,19 @@ export function AdminSidebar({ user }: { user: User }) {
             <div className="absolute -inset-1 rounded-lg bg-sidebar-primary/20 blur-sm opacity-0 transition-opacity duration-300 hover:opacity-70"></div>
           </div>
           
-          {!isCollapsed && (
-            <div className="flex flex-col overflow-hidden">
-              <span className="font-display text-sm font-bold text-sidebar-foreground truncate">PanunCart</span>
-              <span className="text-xs text-sidebar-foreground/60 truncate">Admin Panel</span>
-            </div>
-          )}
+          {/* Always show icon, conditionally show text */}
+          <div className={cn(
+            "flex flex-col overflow-hidden transition-all duration-300",
+            isCollapsed ? "opacity-0 w-0" : "opacity-100 w-auto"
+          )}>
+            <span className="font-display text-sm font-bold text-sidebar-foreground truncate">PanunCart</span>
+            <span className="text-xs text-sidebar-foreground/60 truncate">Admin Panel</span>
+          </div>
           
           {/* Collapse/Expand Button */}
           <button
             onClick={toggleSidebar}
-            className="ml-auto p-1 rounded-md hover:bg-sidebar-accent/20 transition-colors lg:hidden"
+            className="ml-auto p-1 rounded-md hover:bg-sidebar-accent/20 transition-colors"
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? (
