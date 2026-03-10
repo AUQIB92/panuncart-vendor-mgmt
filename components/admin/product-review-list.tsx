@@ -194,7 +194,7 @@ export function ProductReviewList({ products }: { products: Product[] }) {
                   className="bg-success text-success-foreground hover:bg-success/90"
                 >
                   <Send className="mr-1.5 h-3.5 w-3.5" />
-                  {loading === product.id ? "Publishing..." : "Approve & Push to Shopify"}
+                  {loading === product.id ? "Publishing..." : "Approve & Push to Panuncart"}
                 </Button>
                 <Button
                   size="sm"
@@ -219,7 +219,7 @@ export function ProductReviewList({ products }: { products: Product[] }) {
                 className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                View on Shopify
+                View on Panuncart
               </a>
             )}
           </div>
