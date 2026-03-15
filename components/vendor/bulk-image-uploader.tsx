@@ -16,6 +16,18 @@ interface UploadedImage {
   status: "uploading" | "success" | "error"
 }
 
+class ShopifyUploadError extends Error {
+  installUrl?: string
+  oauthRequired: boolean
+
+  constructor(message: string, installUrl?: string, oauthRequired: boolean = false) {
+    super(message)
+    this.name = "ShopifyUploadError"
+    this.installUrl = installUrl
+    this.oauthRequired = oauthRequired
+  }
+}
+
 interface BulkImageUploaderProps {
   onImagesChange: (urls: string[]) => void
   maxImages?: number
@@ -51,7 +63,11 @@ export function BulkImageUploader({
 
     const data = await res.json()
     if (!data.success || !data.cdnUrl) {
-      throw new Error(data.error || "Upload failed")
+      throw new ShopifyUploadError(
+        data.error || "Upload failed",
+        data.install_url || undefined,
+        Boolean(data.oauth_required)
+      )
     }
 
     return data.cdnUrl as string
@@ -110,12 +126,19 @@ export function BulkImageUploader({
               : img
           )
         )
-      } catch {
+      } catch (error) {
         setImages((prev) =>
           prev.map((img) =>
             img.id === id ? { ...img, status: "error" } : img
           )
         )
+
+        if (error instanceof ShopifyUploadError && error.oauthRequired && error.installUrl) {
+          toast.error("Shopify authorization required. Complete the install flow, then retry.")
+          window.location.assign(error.installUrl)
+          break
+        }
+
         toast.error(`Upload failed: ${file.name}`)
       }
     }

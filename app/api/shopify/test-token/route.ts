@@ -6,13 +6,37 @@
 import { NextResponse } from 'next/server';
 import { getShopifyAccessToken } from '@/lib/shopify-oauth';
 
+function resolveRedirectUri(request: Request): string {
+  const requestCallbackUrl = new URL('/api/shopify/callback', request.url);
+  const configuredRedirect = process.env.SHOPIFY_REDIRECT_URI?.replace(/^"(.*)"$/, '$1');
+
+  if (!configuredRedirect) {
+    return requestCallbackUrl.toString();
+  }
+
+  try {
+    const configuredUrl = new URL(configuredRedirect);
+    const requestUrl = new URL(request.url);
+    const requestIsLocal =
+      requestUrl.hostname === 'localhost' || requestUrl.hostname === '127.0.0.1';
+    const configuredIsLocal =
+      configuredUrl.hostname === 'localhost' || configuredUrl.hostname === '127.0.0.1';
+
+    if (!requestIsLocal && configuredIsLocal) {
+      return requestCallbackUrl.toString();
+    }
+
+    return configuredUrl.toString();
+  } catch {
+    return requestCallbackUrl.toString();
+  }
+}
+
 export async function POST(request: Request) {
   try {
     // Parse request data
     const body = await request.json();
-    const redirectUri =
-      process.env.SHOPIFY_REDIRECT_URI ||
-      new URL('/api/shopify/callback', request.url).toString();
+    const redirectUri = resolveRedirectUri(request);
     
     const { 
       SHOPIFY_STORE_DOMAIN,

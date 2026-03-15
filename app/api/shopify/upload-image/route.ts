@@ -4,7 +4,10 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getFreshShopifyToken } from '@/lib/shopify-token-manager';
+import {
+  getFreshShopifyToken,
+  ShopifyTokenError,
+} from '@/lib/shopify-token-manager';
 
 const SHOPIFY_STORE_DOMAIN =
   process.env.SHOPIFY_STORE_DOMAIN || process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN;
@@ -133,6 +136,20 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
+    if (error instanceof ShopifyTokenError) {
+      console.error('Shopify auth required for image upload:', error.message);
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.message,
+          oauth_required: true,
+          install_url: error.installUrl || null,
+          code: error.code,
+        },
+        { status: 401 }
+      );
+    }
+
     console.error('❌ Image upload failed:', error);
     return NextResponse.json(
       { success: false, error: error.message },
