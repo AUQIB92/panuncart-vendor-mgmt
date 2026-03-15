@@ -4,9 +4,10 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getFreshShopifyToken, makeShopifyAPICall } from '@/lib/shopify-token-manager';
+import { getFreshShopifyToken } from '@/lib/shopify-token-manager';
 
-const SHOPIFY_STORE_DOMAIN = process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN;
+const SHOPIFY_STORE_DOMAIN =
+  process.env.SHOPIFY_STORE_DOMAIN || process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN;
 
 export async function POST(request: Request) {
   try {

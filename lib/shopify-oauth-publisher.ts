@@ -3,9 +3,14 @@
  * Uses OAuth tokens with automatic refresh capability
  */
 
-import { makeShopifyAPICall, getFreshShopifyToken } from "./shopify-token-manager";
+import {
+  makeShopifyAPICall,
+  getFreshShopifyToken,
+  ShopifyTokenError,
+} from "./shopify-token-manager";
 
-const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
+const SHOPIFY_STORE_DOMAIN =
+  process.env.SHOPIFY_STORE_DOMAIN || process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN;
 const SHOPIFY_API_VERSION = "2024-10";
 
 /**
@@ -209,7 +214,14 @@ export async function createShopifyProduct(product: {
   vendor_name?: string;
   // Optional: product ID for database updates
   product_id?: string;
-}): Promise<{ success: boolean; shopify_product_id?: string; shopify_variant_id?: string; uploaded_image_urls?: string[]; error?: string }> {
+}): Promise<{
+  success: boolean;
+  shopify_product_id?: string;
+  shopify_variant_id?: string;
+  uploaded_image_urls?: string[];
+  error?: string;
+  install_url?: string;
+}> {
   console.log('🚀 Creating Shopify product (Auto-Refresh):', {
     title: product.title,
     price: product.price,
@@ -323,6 +335,15 @@ export async function createShopifyProduct(product: {
       uploaded_image_urls: imageNodes.map(node => node.src)
     };
   } catch (err) {
+    if (err instanceof ShopifyTokenError) {
+      console.error("Shopify token error:", err.message, err.installUrl);
+      return {
+        success: false,
+        error: err.message,
+        install_url: err.installUrl,
+      };
+    }
+
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("❌ Shopify API exception:", message);
     return { success: false, error: message };
@@ -358,6 +379,16 @@ export async function testShopifyConnection(): Promise<{ success: boolean; messa
       return { success: false, message: `Shopify API error: ${response.status}` };
     }
   } catch (error) {
+    if (error instanceof ShopifyTokenError) {
+      console.error("❌ Shopify OAuth test failed:", error);
+      return {
+        success: false,
+        message: error.installUrl
+          ? `${error.message} Re-authorize via ${error.installUrl}.`
+          : error.message,
+      };
+    }
+
     console.error("❌ Shopify OAuth test failed:", error);
     return { success: false, message: (error as Error).message };
   }

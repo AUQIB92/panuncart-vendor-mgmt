@@ -1,61 +1,79 @@
 /**
- * Shopify OAuth Token Manager
- * Stores and retrieves Shopify access tokens locally
+ * Shopify OAuth Token Storage
+ * Persists Shopify access tokens in Supabase so they survive serverless restarts.
  */
 
-// Local storage for Shopify tokens (in-memory for demo, use file system in production)
-let localTokenStorage: { [shopDomain: string]: { access_token: string; expires_at: string } } = {};
+import { createServiceRoleClient } from '@/lib/supabase/server';
 
-// Get store domain from environment
-const STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN || 'panuncart-x-bbm.myshopify.com';
-
-// In production, you'd save to a file like:
-// const TOKEN_FILE_PATH = './shopify-tokens.json';
+interface ShopifyTokenRow {
+  id: number;
+  shop_domain: string;
+  access_token: string;
+  expires_at: string | null;
+  updated_at?: string;
+}
 
 export async function getShopifyAccessToken(shopDomain: string): Promise<string | null> {
   try {
-    // Check if we have a stored token for this shop
-    const storedToken = localTokenStorage[shopDomain];
-    
-    if (!storedToken) {
+    const supabase = createServiceRoleClient();
+
+    const { data, error } = await supabase
+      .from('shopify_tokens')
+      .select('id, shop_domain, access_token, expires_at, updated_at')
+      .eq('shop_domain', shopDomain)
+      .maybeSingle<ShopifyTokenRow>();
+
+    if (error) {
+      console.error('Error retrieving Shopify token:', error.message);
+      return null;
+    }
+
+    if (!data?.access_token) {
       console.log('No stored token found for shop:', shopDomain);
       return null;
     }
-    
-    // Check if token is expired
-    const expiresAt = new Date(storedToken.expires_at);
-    const now = new Date();
-    
-    if (expiresAt < now) {
-      console.log('Stored token is expired');
-      // Remove expired token
-      delete localTokenStorage[shopDomain];
-      return null;
+
+    if (data.expires_at) {
+      const expiresAt = new Date(data.expires_at);
+      if (expiresAt < new Date()) {
+        console.log('Stored Shopify token is expired for shop:', shopDomain);
+        return null;
+      }
     }
-    
-    console.log('✅ Using stored Shopify token for:', shopDomain);
-    return storedToken.access_token;
-    
+
+    console.log('Using stored Shopify token for:', shopDomain);
+    return data.access_token;
   } catch (error) {
     console.error('Error retrieving Shopify token:', error);
     return null;
   }
 }
 
-export async function storeShopifyToken(shopDomain: string, accessToken: string) {
+export async function storeShopifyToken(
+  shopDomain: string,
+  accessToken: string
+): Promise<boolean> {
   try {
-    // Store the token locally with 30-day expiration
-    localTokenStorage[shopDomain] = {
-      access_token: accessToken,
-      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
-    };
-    
-    console.log('✅ Shopify token stored locally for:', shopDomain);
-    console.log('Token preview:', accessToken.substring(0, 20) + '...');
-    
-    // In production, you'd save to file:
-    // await fs.writeFile(TOKEN_FILE_PATH, JSON.stringify(localTokenStorage, null, 2));
-    
+    const supabase = createServiceRoleClient();
+
+    const { error } = await supabase
+      .from('shopify_tokens')
+      .upsert(
+        {
+          shop_domain: shopDomain,
+          access_token: accessToken,
+          expires_at: null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'shop_domain' }
+      );
+
+    if (error) {
+      console.error('Error storing Shopify token:', error.message);
+      return false;
+    }
+
+    console.log('Stored Shopify token for:', shopDomain);
     return true;
   } catch (error) {
     console.error('Error storing Shopify token:', error);
@@ -63,42 +81,47 @@ export async function storeShopifyToken(shopDomain: string, accessToken: string)
   }
 }
 
-// Utility function to clear expired tokens
-export function cleanupExpiredTokens() {
-  const now = new Date();
-  let cleanedCount = 0;
-  
-  for (const [shopDomain, tokenData] of Object.entries(localTokenStorage)) {
-    const expiresAt = new Date(tokenData.expires_at);
-    if (expiresAt < now) {
-      delete localTokenStorage[shopDomain];
-      cleanedCount++;
+export async function cleanupExpiredTokens(): Promise<number> {
+  try {
+    const supabase = createServiceRoleClient();
+    const nowIso = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('shopify_tokens')
+      .delete()
+      .not('expires_at', 'is', null)
+      .lt('expires_at', nowIso)
+      .select('id');
+
+    if (error) {
+      console.error('Error cleaning expired tokens:', error.message);
+      return 0;
     }
+
+    return data?.length || 0;
+  } catch (error) {
+    console.error('Error cleaning expired tokens:', error);
+    return 0;
   }
-  
-  if (cleanedCount > 0) {
-    console.log(`🧹 Cleaned up ${cleanedCount} expired tokens`);
-  }
-  
-  return cleanedCount;
 }
 
-// Utility function to list all stored tokens (for debugging)
-export function listStoredTokens() {
-  console.log('\n📦 Stored Shopify Tokens:');
-  console.log('=========================');
-  
-  if (Object.keys(localTokenStorage).length === 0) {
-    console.log('No tokens stored');
-    return;
-  }
-  
-  for (const [shopDomain, tokenData] of Object.entries(localTokenStorage)) {
-    const expiresAt = new Date(tokenData.expires_at);
-    const isExpired = expiresAt < new Date();
-    console.log(`${shopDomain}:`);
-    console.log(`  Token: ${tokenData.access_token.substring(0, 20)}...`);
-    console.log(`  Expires: ${expiresAt.toLocaleString()} ${isExpired ? '(EXPIRED)' : ''}`);
-    console.log('');
+export async function listStoredTokens() {
+  try {
+    const supabase = createServiceRoleClient();
+
+    const { data, error } = await supabase
+      .from('shopify_tokens')
+      .select('shop_domain, expires_at, updated_at')
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      console.error('Error listing tokens:', error.message);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error listing tokens:', error);
+    return [];
   }
 }

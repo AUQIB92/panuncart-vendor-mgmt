@@ -92,6 +92,7 @@ export async function POST(request: Request) {
           success: true,
           message:
             "Product approved but Shopify push failed. You can retry later.",
+          shopify_install_url: shopifyResult.install_url || null,
         })
       }
 

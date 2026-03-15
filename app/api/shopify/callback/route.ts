@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
     
     if (!stored) {
       console.error('Failed to store Shopify token locally');
+      throw new Error('Failed to persist Shopify token');
     }
     
     // Return success page
@@ -79,7 +80,7 @@ export async function GET(request: NextRequest) {
           
           <div class="info">
             <strong>Token Stored Locally</strong><br/>
-            The access token is now stored in your application's memory.<br/>
+            The access token is now stored in your application's token store.<br/>
             You can now approve products and they will be published to Shopify.
           </div>
           

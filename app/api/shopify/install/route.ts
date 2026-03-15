@@ -6,11 +6,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
+  const redirectUri =
+    process.env.SHOPIFY_REDIRECT_URI ||
+    new URL('/api/shopify/callback', request.url).toString();
+
   // Validate required environment variables
   if (!process.env.SHOPIFY_CLIENT_ID || 
       !process.env.SHOPIFY_CLIENT_SECRET || 
-      !process.env.SHOPIFY_SCOPES || 
-      !process.env.SHOPIFY_REDIRECT_URI) {
+      !process.env.SHOPIFY_SCOPES) {
     return NextResponse.json(
       { error: 'Missing required Shopify OAuth environment variables' }, 
       { status: 500 }
@@ -38,7 +41,7 @@ export async function GET(request: NextRequest) {
     `https://${shop}/admin/oauth/authorize` +
     `?client_id=${process.env.SHOPIFY_CLIENT_ID}` +
     `&scope=${process.env.SHOPIFY_SCOPES}` +
-    `&redirect_uri=${process.env.SHOPIFY_REDIRECT_URI}` +
+    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
     `&state=${state}`;
   
   console.log('🛍️  Shopify OAuth Install URL:', installUrl);

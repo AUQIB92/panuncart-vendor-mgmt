@@ -4,21 +4,26 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getShopifyAccessToken, storeShopifyToken } from '@/lib/shopify-oauth';
+import { getShopifyAccessToken } from '@/lib/shopify-oauth';
 
 export async function POST(request: Request) {
   try {
     // Parse request data
     const body = await request.json();
+    const redirectUri =
+      process.env.SHOPIFY_REDIRECT_URI ||
+      new URL('/api/shopify/callback', request.url).toString();
     
     const { 
-      SHOPIFY_STORE_DOMAIN, 
+      SHOPIFY_STORE_DOMAIN,
+      NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN,
       SHOPIFY_CLIENT_ID, 
       SHOPIFY_CLIENT_SECRET 
     } = process.env;
+    const shopDomain = SHOPIFY_STORE_DOMAIN || NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN;
 
     // Validate environment variables
-    if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_CLIENT_ID || !SHOPIFY_CLIENT_SECRET) {
+    if (!shopDomain || !SHOPIFY_CLIENT_ID || !SHOPIFY_CLIENT_SECRET) {
       return NextResponse.json(
         { success: false, error: "Missing Server Environment Variables" },
         { status: 500 }
@@ -26,13 +31,13 @@ export async function POST(request: Request) {
     }
 
     console.log('🛍️  Shopify Token Test Request');
-    console.log('Store Domain:', SHOPIFY_STORE_DOMAIN);
+    console.log('Store Domain:', shopDomain);
     console.log('Client ID Present:', !!SHOPIFY_CLIENT_ID);
 
     // ---------------------------------------------------------
     // STEP 1: Check for existing token
     // ---------------------------------------------------------
-    let accessToken = await getShopifyAccessToken(SHOPIFY_STORE_DOMAIN);
+    let accessToken = await getShopifyAccessToken(shopDomain);
     
     if (!accessToken) {
       // ---------------------------------------------------------
@@ -44,7 +49,7 @@ export async function POST(request: Request) {
         success: false,
         error: "No access token available. Please complete OAuth flow first.",
         oauth_required: true,
-        install_url: `https://${SHOPIFY_STORE_DOMAIN}/admin/oauth/authorize?client_id=${SHOPIFY_CLIENT_ID}&scope=read_products,write_products&redirect_uri=http://localhost:3000/api/shopify/callback&state=test123`
+        install_url: `https://${shopDomain}/admin/oauth/authorize?client_id=${SHOPIFY_CLIENT_ID}&scope=read_products,write_products&redirect_uri=${encodeURIComponent(redirectUri)}&state=test123`
       }, { status: 401 });
     }
 
@@ -55,7 +60,7 @@ export async function POST(request: Request) {
     // ---------------------------------------------------------
     console.log('📋 Testing product listing...');
     
-    const listUrl = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2024-10/products.json?limit=5`;
+    const listUrl = `https://${shopDomain}/admin/api/2024-10/products.json?limit=5`;
     
     const listResponse = await fetch(listUrl, {
       method: 'GET',
@@ -75,7 +80,7 @@ export async function POST(request: Request) {
           success: false,
           error: "Invalid or expired token. Please re-authenticate.",
           token_expired: true,
-          install_url: `https://${SHOPIFY_STORE_DOMAIN}/admin/oauth/authorize?client_id=${SHOPIFY_CLIENT_ID}&scope=read_products,write_products&redirect_uri=http://localhost:3000/api/shopify/callback&state=test123`
+          install_url: `https://${shopDomain}/admin/oauth/authorize?client_id=${SHOPIFY_CLIENT_ID}&scope=read_products,write_products&redirect_uri=${encodeURIComponent(redirectUri)}&state=test123`
         }, { status: 401 });
       }
       
@@ -92,7 +97,7 @@ export async function POST(request: Request) {
     if (body.create_product) {
       console.log('➕ Creating test product...');
       
-      const productUrl = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2024-10/products.json`;
+      const productUrl = `https://${shopDomain}/admin/api/2024-10/products.json`;
       
       const productPayload = {
         product: {
@@ -164,18 +169,19 @@ export async function POST(request: Request) {
 // GET endpoint to check token status
 export async function GET() {
   try {
-    const { SHOPIFY_STORE_DOMAIN } = process.env;
+    const shopDomain =
+      process.env.SHOPIFY_STORE_DOMAIN || process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN;
     
-    if (!SHOPIFY_STORE_DOMAIN) {
+    if (!shopDomain) {
       return NextResponse.json({ error: "Store domain not configured" }, { status: 500 });
     }
 
-    const token = await getShopifyAccessToken(SHOPIFY_STORE_DOMAIN);
+    const token = await getShopifyAccessToken(shopDomain);
     
     return NextResponse.json({
       has_token: !!token,
       token_preview: token ? token.substring(0, 20) + '...' : null,
-      store_domain: SHOPIFY_STORE_DOMAIN
+      store_domain: shopDomain
     });
     
   } catch (error: any) {
