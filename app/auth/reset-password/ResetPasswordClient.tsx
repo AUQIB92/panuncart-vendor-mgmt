@@ -39,8 +39,14 @@ export default function ResetPasswordClient() {
         try {
           const { error } = await supabase.auth.exchangeCodeForSession(code)
           if (error) {
-            setErrorStatus("Reset link is invalid or has expired. Please request a new one.")
-            return
+            // In React Strict Mode, useEffect runs twice. The first exchange succeeds, 
+            // the second fails because the code is single-use. We should check if we 
+            // successfully created a session before assuming the code is totally invalid.
+            const { data } = await supabase.auth.getSession()
+            if (!data?.session) {
+              setErrorStatus("Reset link is invalid or has expired. Please request a new one.")
+              return
+            }
           }
           setSessionReady(true)
           
