@@ -2,6 +2,7 @@ import React from "react"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { VendorSidebar } from "@/components/vendor/vendor-sidebar"
+import { DashboardShell } from "@/components/layout/dashboard-shell"
 import { SidebarProvider } from "@/contexts/sidebar-context"
 
 export default async function VendorLayout({
@@ -30,14 +31,12 @@ export default async function VendorLayout({
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen">
-        <VendorSidebar user={user} vendorStatus={vendorStatus} />
-        <main className="flex-1 overflow-y-auto bg-muted/30">
-          <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-            {children}
-          </div>
-        </main>
-      </div>
+      <DashboardShell
+        sidebar={<VendorSidebar user={user} vendorStatus={vendorStatus} />}
+        contentClassName="max-w-6xl"
+      >
+        {children}
+      </DashboardShell>
     </SidebarProvider>
   )
 }

@@ -60,7 +60,7 @@ export function VendorSidebar({ user, vendorStatus }: { user: User; vendorStatus
 
       <aside 
         className={cn(
-          "fixed left-0 top-0 z-50 flex h-screen flex-col border-r bg-sidebar text-sidebar-foreground transition-all duration-300 lg:static lg:z-auto",
+          "fixed left-0 top-0 z-50 flex h-screen flex-col border-r bg-sidebar text-sidebar-foreground transition-all duration-300",
           isCollapsed 
             ? "w-16 lg:w-16" 
             : "w-64 lg:w-64",
