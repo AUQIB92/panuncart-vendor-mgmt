@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation"
 import { Store, Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
+import { getAuthRedirectUrl } from "@/lib/auth-redirect"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -56,9 +57,7 @@ export default function RegisterPage() {
       email: form.email,
       password: form.password,
       options: {
-        emailRedirectTo:
-          process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-          `${window.location.origin}/auth/confirm`,
+        emailRedirectTo: getAuthRedirectUrl("/auth/confirm"),
         data: {
           role: "vendor",
           business_name: form.business_name,

@@ -10,6 +10,18 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
+function getHashParams() {
+  if (typeof window === "undefined") {
+    return new URLSearchParams()
+  }
+
+  const hash = window.location.hash.startsWith("#")
+    ? window.location.hash.slice(1)
+    : window.location.hash
+
+  return new URLSearchParams(hash)
+}
+
 export default function ResetPasswordClient() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -25,49 +37,96 @@ export default function ResetPasswordClient() {
   const supabase = createClient()
 
   useEffect(() => {
-    async function handleCodeExchange() {
+    async function handleRecoveryLink() {
       const code = searchParams.get("code")
+      const tokenHash = searchParams.get("token_hash")
+      const type = searchParams.get("type")
       const error = searchParams.get("error")
       const errorDescription = searchParams.get("error_description")
+      const hashParams = getHashParams()
+      const accessToken = hashParams.get("access_token")
+      const refreshToken = hashParams.get("refresh_token")
+      const hashType = hashParams.get("type")
 
       if (error) {
         setErrorStatus(errorDescription || "Invalid or expired password reset link.")
         return
       }
 
-      if (code) {
-        try {
+      try {
+        if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code)
           if (error) {
-            // In React Strict Mode, useEffect runs twice. The first exchange succeeds, 
-            // the second fails because the code is single-use. We should check if we 
-            // successfully created a session before assuming the code is totally invalid.
+            // In React Strict Mode, useEffect runs twice. The first exchange succeeds,
+            // the second fails because the code is single-use. Check for a session first.
             const { data } = await supabase.auth.getSession()
             if (!data?.session) {
               setErrorStatus("Reset link is invalid or has expired. Please request a new one.")
               return
             }
           }
+
           setSessionReady(true)
-          
-          // Clear URL parameters for security and aesthetics
           window.history.replaceState({}, document.title, window.location.pathname)
-        } catch {
-          setErrorStatus("Something went wrong verifying the reset link.")
+          return
         }
-      } else {
-        // Check if there's already an active session (e.g. implicit flow or page refresh)
+
+        if (tokenHash) {
+          if (type !== "recovery") {
+            setErrorStatus("Reset link format is invalid. Please request a new password reset link.")
+            return
+          }
+
+          const { error } = await supabase.auth.verifyOtp({
+            type: "recovery",
+            token_hash: tokenHash,
+          })
+
+          if (error) {
+            setErrorStatus("Reset link is invalid or has expired. Please request a new one.")
+            return
+          }
+
+          setSessionReady(true)
+          window.history.replaceState({}, document.title, window.location.pathname)
+          return
+        }
+
+        if (accessToken && refreshToken) {
+          if (hashType && hashType !== "recovery") {
+            setErrorStatus("Reset link format is invalid. Please request a new password reset link.")
+            return
+          }
+
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          })
+
+          if (error) {
+            setErrorStatus("Reset link is invalid or has expired. Please request a new one.")
+            return
+          }
+
+          setSessionReady(true)
+          window.history.replaceState({}, document.title, window.location.pathname)
+          return
+        }
+
+        // Check if there's already an active session (e.g. page refresh after verification)
         const { data } = await supabase.auth.getSession()
         if (data.session) {
           setSessionReady(true)
         } else {
           setErrorStatus("No reset token found. Please request a new password reset link.")
         }
+      } catch {
+        setErrorStatus("Something went wrong verifying the reset link.")
       }
     }
 
-    handleCodeExchange()
-  }, [searchParams, supabase])
+    handleRecoveryLink()
+  }, [searchParams])
 
   async function handleUpdatePassword(e: React.FormEvent) {
     e.preventDefault()
