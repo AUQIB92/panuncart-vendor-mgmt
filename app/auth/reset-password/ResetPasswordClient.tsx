@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Eye, EyeOff, AlertCircle, CheckCircle } from "lucide-react"
+import { DEFAULT_AUTH_RETURN_PATH, getForgotPasswordHref, getSafeAuthReturnPath } from "@/lib/auth-return-path"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,10 +32,13 @@ export default function ResetPasswordClient() {
   const [errorStatus, setErrorStatus] = useState("")
   const [success, setSuccess] = useState(false)
   const [sessionReady, setSessionReady] = useState(false)
+  const [returnTo, setReturnTo] = useState(DEFAULT_AUTH_RETURN_PATH)
   
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
+  const isAdminFlow = returnTo === "/auth/admin-login"
+  const loginLinkLabel = isAdminFlow ? "Admin Login" : "Login"
 
   useEffect(() => {
     async function handleRecoveryLink() {
@@ -43,10 +47,12 @@ export default function ResetPasswordClient() {
       const type = searchParams.get("type")
       const error = searchParams.get("error")
       const errorDescription = searchParams.get("error_description")
+      const safeReturnTo = getSafeAuthReturnPath(searchParams.get("returnTo"))
       const hashParams = getHashParams()
       const accessToken = hashParams.get("access_token")
       const refreshToken = hashParams.get("refresh_token")
       const hashType = hashParams.get("type")
+      setReturnTo(safeReturnTo)
 
       if (error) {
         setErrorStatus(errorDescription || "Invalid or expired password reset link.")
@@ -162,7 +168,7 @@ export default function ResetPasswordClient() {
       // Sign out the user after reset so they can log in normally 
       // (as vendor/admin routing happens there)
       supabase.auth.signOut().then(() => {
-        router.push("/auth/login")
+        router.push(returnTo)
       })
     }, 3000)
   }
@@ -178,7 +184,7 @@ export default function ResetPasswordClient() {
           <CardContent>
             <p className="text-muted-foreground mb-6">{errorStatus}</p>
             <Button asChild className="w-full">
-              <Link href="/auth/forgot-password">Request New Link</Link>
+              <Link href={getForgotPasswordHref(returnTo)}>Request New Link</Link>
             </Button>
           </CardContent>
         </Card>
@@ -216,10 +222,10 @@ export default function ResetPasswordClient() {
               <div className="flex flex-col items-center justify-center gap-4 py-4">
                 <CheckCircle className="h-16 w-16 text-green-600" />
                 <p className="text-center text-sm text-muted-foreground">
-                  You will be redirected to the login page shortly...
+                  {`You will be redirected to the ${loginLinkLabel.toLowerCase()} page shortly...`}
                 </p>
                 <Button asChild className="w-full mt-4">
-                  <Link href="/auth/login">Return to Login</Link>
+                  <Link href={returnTo}>{`Return to ${loginLinkLabel}`}</Link>
                 </Button>
               </div>
             ) : !sessionReady ? (

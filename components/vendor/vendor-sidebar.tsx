@@ -2,17 +2,17 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Store, LayoutDashboard, Package, Plus, LogOut, User as UserIcon, ShieldAlert, Menu, X } from "lucide-react"
+import { LayoutDashboard, Package, Plus, LogOut, User as UserIcon, ShieldAlert, Menu, X, ShoppingCart } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import type { User } from "@supabase/supabase-js"
 import { useState, useEffect } from "react"
-import { useIsMobile } from "@/hooks/use-mobile"
 import { useSidebar } from "@/contexts/sidebar-context"
 
 const navItems = [
   { href: "/vendor", label: "Dashboard", icon: LayoutDashboard, requiresApproval: false },
   { href: "/vendor/products", label: "My Products", icon: Package, requiresApproval: true },
+  { href: "/vendor/orders", label: "Orders & Payments", icon: ShoppingCart, requiresApproval: true },
   { href: "/vendor/products/new", label: "Add Product", icon: Plus, requiresApproval: true },
   { href: "/vendor/profile", label: "Profile", icon: UserIcon, requiresApproval: false },
 ]

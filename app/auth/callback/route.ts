@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { DEFAULT_AUTH_RETURN_PATH, getSafeAuthReturnPath } from "@/lib/auth-return-path"
 import { createClient } from "@/lib/supabase/server"
 
 const DEFAULT_REDIRECT_PATH = "/"
@@ -28,6 +29,20 @@ function getSafeRedirectPath(nextParam: string | null) {
   return `${nextUrl.pathname}${nextUrl.search}`
 }
 
+function getResetPasswordFallbackPath(next: string) {
+  const nextUrl = new URL(next, "http://localhost")
+  const returnTo = getSafeAuthReturnPath(nextUrl.searchParams.get("returnTo"))
+  const params = new URLSearchParams({
+    error: "invalid_or_expired_link",
+  })
+
+  if (returnTo !== DEFAULT_AUTH_RETURN_PATH) {
+    params.set("returnTo", returnTo)
+  }
+
+  return `/auth/forgot-password?${params.toString()}`
+}
+
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get("code")
@@ -38,6 +53,8 @@ export async function GET(request: NextRequest) {
     const fallbackPath =
       next === "/auth/reset-password"
         ? "/auth/forgot-password?error=invalid_or_expired_link"
+        : next.startsWith("/auth/reset-password")
+          ? getResetPasswordFallbackPath(next)
         : "/auth/login?error=auth_callback_failed"
 
     return NextResponse.redirect(new URL(fallbackPath, origin))
@@ -50,6 +67,8 @@ export async function GET(request: NextRequest) {
     const fallbackPath =
       next === "/auth/reset-password"
         ? "/auth/forgot-password?error=invalid_or_expired_link"
+        : next.startsWith("/auth/reset-password")
+          ? getResetPasswordFallbackPath(next)
         : "/auth/login?error=auth_callback_failed"
 
     return NextResponse.redirect(new URL(fallbackPath, origin))
