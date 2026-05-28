@@ -75,7 +75,7 @@ export function ProductReviewList({ products }: { products: Product[] }) {
       })
       const data = await res.json()
       if (data.success) {
-        toast.success("Product approved and published to Shopify!")
+        toast.success("Product approved and published to Panuncart!")
         router.refresh()
       } else {
         toast.error(data.error || "Failed to approve product")
@@ -167,7 +167,7 @@ export function ProductReviewList({ products }: { products: Product[] }) {
               {isPublished && product.shopify_product_id && (
                 <p className="mt-2 flex items-center gap-1 text-xs text-success">
                   <ShoppingBag className="h-3 w-3" />
-                  Shopify Product ID: {product.shopify_product_id}
+                  Panuncart Product ID: {product.shopify_product_id}
                 </p>
               )}
             </div>
@@ -194,7 +194,7 @@ export function ProductReviewList({ products }: { products: Product[] }) {
                   className="bg-success text-success-foreground hover:bg-success/90"
                 >
                   <Send className="mr-1.5 h-3.5 w-3.5" />
-                  {loading === product.id ? "Publishing..." : "Approve & Push to Shopify"}
+                  {loading === product.id ? "Publishing..." : "Approve & Push to Panuncart"}
                 </Button>
                 <Button
                   size="sm"
@@ -219,7 +219,7 @@ export function ProductReviewList({ products }: { products: Product[] }) {
                 className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                View on Shopify
+                View on Panuncart
               </a>
             )}
           </div>
@@ -238,7 +238,7 @@ export function ProductReviewList({ products }: { products: Product[] }) {
           </TabsTrigger>
           <TabsTrigger value="published" className="gap-2">
             <ShoppingBag className="h-4 w-4" />
-            On Shopify ({publishedProducts.length})
+            On Panuncart ({publishedProducts.length})
           </TabsTrigger>
           <TabsTrigger value="rejected" className="gap-2">
             <XCircle className="h-4 w-4" />
@@ -266,7 +266,7 @@ export function ProductReviewList({ products }: { products: Product[] }) {
 
         <TabsContent value="published">
           {publishedProducts.length === 0 ? (
-            <EmptyState message="No products published on Shopify yet" />
+            <EmptyState message="No products published on Panuncart yet" />
           ) : (
             <div className="flex flex-col gap-4">
               {publishedProducts.map((p) => (

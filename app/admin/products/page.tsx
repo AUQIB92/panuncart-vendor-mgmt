@@ -28,7 +28,7 @@ export default async function AdminProductsPage() {
       <div className="mb-8">
         <h1 className="font-display text-2xl font-bold text-foreground">Product Reviews</h1>
         <p className="mt-1 text-muted-foreground">
-          Approve products to push them to your Shopify store, or reject with feedback
+          Approve products to push them to your Panuncart store, or reject with feedback
         </p>
       </div>
       <ProductReviewList products={mappedProducts} />
